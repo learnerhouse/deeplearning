@@ -1,205 +1,9 @@
 import tensorflow as tf
+import random
 import os
 import gym
 import numpy as np
-
-class CNN:
-    '''
-        CNN
-        conv4
-    '''
-    def __init__(self, env):
-        def weight_variable(shape):
-            initial = tf.truncated_normal(shape, stddev=1e-3)
-            return tf.Variable(initial)
-
-        def bias_variable(shape):
-            initial = tf.constant(1e-3, shape=shape)
-            return tf.Variable(initial)
-
-        def conv2d(input_tensor, W):
-            return tf.nn.conv2d(input_tensor, W, strides=[1, 1, 1, 1], padding='SAME')
-
-        def use_relu(conv, conv_biases):
-            return tf.nn.relu(tf.nn.bias_add(conv, conv_biases))
-
-        self.input_length = 8 * 8 * 3
-        self.input_s = tf.placeholder(shape=[1, self.input_length], dtype=tf.float32)
-        self.input_1 = tf.reshape(self.input_s, shape=[1, 8, 8, 3])
-        # layer1-conv64
-        self.W_conv_1 = weight_variable([3, 3, 3, 64])
-        self.b_1 = bias_variable([64])
-        self.conv_1 = conv2d(self.input_1, self.W_conv_1)
-        self.out_1 = use_relu(self.conv_1, self.b_1)
-
-        # layer2-conv64
-        self.W_conv_2 = weight_variable([3, 3, 64, 64])
-        self.b_2 = bias_variable([64])
-        self.conv_2 = conv2d(self.out_1, self.W_conv_2)
-        self.out_2 = use_relu(self.conv_2, self.b_2)
-
-        # layer3-conv128
-        self.W_conv_3 = weight_variable([3, 3, 64, 128])
-        self.b_3 = bias_variable([128])
-        self.conv_3 = conv2d(self.out_2, self.W_conv_3)
-        self.out_3 = use_relu(self.conv_3, self.b_3)
-
-        # layer4-conv128
-        self.W_conv_4 = weight_variable([3, 3, 128, 128])
-        self.b_4 = bias_variable([128])
-        self.conv_4 = conv2d(self.out_3, self.W_conv_4)
-        self.out_4 = use_relu(self.conv_4, self.b_4)
-
-        # layer5-fc128
-        out_4_flat = tf.reshape(out_4, [-1, 8 * 8 * 128])
-        W_5 = weight_variable([8 * 8 * 128, 128])
-        b_5 = bias_variable([128])
-        out_5 = tf.nn.relu(tf.matmul(out_4_flat, W_5) + b_5)
-
-        # layer6-fc60
-        W_6 = weight_variable([128, env.action_space.n])
-        b_6 = bias_variable([env.action_space.n])
-        self.Q = tf.nn.relu(tf.matmul(out_5, W_6) + b_6)
-
-        self.Q_target = tf.placeholder(shape=[1, env.action_space.n], dtype=tf.float32)
-        self.loss = tf.reduce_sum(tf.square(self.Q_target - self.Q))
-        self.update = tf.train.GradientDescentOptimizer(1e-2).minimize(self.loss)
-        self.init = tf.global_variables_initializer()
-
-class Freezing_CNN:
-    def __init__(self, env):
-        def weight_variable(shape):
-            initial = tf.truncated_normal(shape, stddev=1e-2)
-            return tf.Variable(initial)
-
-        def bias_variable(shape):
-            initial = tf.constant(1e-2, shape=shape)
-            return tf.Variable(initial)
-
-        def conv2d(input_tensor, W):
-            return tf.nn.conv2d(input_tensor, W, strides=[1, 1, 1, 1], padding='SAME')
-
-        def use_relu(conv, conv_biases):
-            return tf.nn.relu(tf.nn.bias_add(conv, conv_biases))
-
-        self.input_length = 8 * 8 * 3
-        self.input_s = tf.placeholder(shape=[1, self.input_length], dtype=tf.float32)
-        self.input_1 = tf.reshape(self.input_s, shape=[1, 8, 8, 3])
-
-        with tf.variable_scope('main_model'):
-            # layer1-conv64
-            W_conv_1 = weight_variable([3, 3, 3, 64])
-            b_1 = bias_variable([64])
-            conv_1 = conv2d(self.input_1, W_conv_1)
-            out_1 = use_relu(conv_1, b_1)
-
-            # layer2-conv64
-            W_conv_2 = weight_variable([3, 3, 64, 64])
-            b_2 = bias_variable([64])
-            conv_2 = conv2d(out_1, W_conv_2)
-            out_2 = use_relu(conv_2, b_2)
-
-            # layer3-conv128
-            W_conv_3 = weight_variable([3, 3, 64, 128])
-            b_3 = bias_variable([128])
-            conv_3 = conv2d(out_2, W_conv_3)
-            out_3 = use_relu(conv_3, b_3)
-
-            # layer4-conv128
-            W_conv_4 = weight_variable([3, 3, 128, 128])
-            b_4 = bias_variable([128])
-            conv_4 = conv2d(out_3, W_conv_4)
-            out_4 = use_relu(conv_4, b_4)
-
-            # layer5-fc128
-            out_4_flat = tf.reshape(out_4, [-1, 8 * 8 * 128])
-            W_5 = weight_variable([8 * 8 * 128, 128])
-            b_5 = bias_variable([128])
-            out_5 = tf.nn.relu(tf.matmul(out_4_flat, W_5) + b_5)
-
-            # layer6-fc60
-            W_6 = weight_variable([128, env.action_space.n])
-            b_6 = bias_variable([env.action_space.n])
-            self.Q = tf.nn.relu(tf.matmul(out_5, W_6) + b_6)
-
-
-        self.Q_target = tf.placeholder(shape=[1, env.action_space.n], dtype=tf.float32)
-        self.loss = tf.reduce_sum(tf.square(self.Q_target - self.Q))
-        self.update = tf.train.GradientDescentOptimizer(1e-3).minimize(self.loss)
-        self.init = tf.global_variables_initializer()
-
-
-        with tf.variable_scope('freezing_model'):
-            # layer1-conv64
-            W_conv_1 = weight_variable([3, 3, 3, 64])
-            b_1 = bias_variable([64])
-            conv_1 = conv2d(self.input_1, W_conv_1)
-            out_1 = use_relu(conv_1, b_1)
-
-            # layer2-conv64
-            W_conv_2 = weight_variable([3, 3, 64, 64])
-            b_2 = bias_variable([64])
-            conv_2 = conv2d(out_1, W_conv_2)
-            out_2 = use_relu(conv_2, b_2)
-
-            # layer3-conv128
-            W_conv_3 = weight_variable([3, 3, 64, 128])
-            b_3 = bias_variable([128])
-            conv_3 = conv2d(out_2, W_conv_3)
-            out_3 = use_relu(conv_3, b_3)
-
-            # layer4-conv128
-            W_conv_4 = weight_variable([3, 3, 128, 128])
-            b_4 = bias_variable([128])
-            conv_4 = conv2d(out_3, W_conv_4)
-            out_4 = use_relu(conv_4, b_4)
-
-            # layer5-fc128
-            out_4_flat = tf.reshape(out_4, [-1, 8 * 8 * 128])
-            W_5 = weight_variable([8 * 8 * 128, 128])
-            b_5 = bias_variable([128])
-            out_5 = tf.nn.relu(tf.matmul(out_4_flat, W_5) + b_5)
-
-            # layer6-fc60
-            W_6 = weight_variable([128, env.action_space.n])
-            b_6 = bias_variable([env.action_space.n])
-            self.freezing_Q = tf.nn.relu(tf.matmul(out_5, W_6) + b_6)
-
-        t_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='freezing_model')
-        e_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='main_model')
-        self.replace_model_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
-
-class Simple_model:
-    '''
-        a simple neural network
-        use flatten input
-    '''
-    def __init__(self, env):
-        '''
-        self.input_length = env.board_size ** 2 * 3
-        self.input_s = tf.placeholder(shape=[1, self.input_length], dtype=tf.float32)
-        self.W = tf.Variable(tf.random_uniform(shape=[self.input_length, env.action_space.n], minval=-1e-4, maxval=1e-4), name = 'w')
-        # self.Q = tf.matmul(self.input_s, self.W)
-        self.b1 = tf.Variable(tf.zeros([1, env.action_space.n]) + 1e-4)
-        self.Q = tf.nn.relu(tf.matmul(self.input_s, self.W) + self.b1)
-    '''
-        self.input_length = env.board_size ** 2 * 3
-        self.input_s = tf.placeholder(shape=[1, self.input_length], dtype=tf.float32)
-        self.W1 = tf.Variable(tf.random_uniform(shape=[self.input_length, 10], minval=-1e-4, maxval=1e-4))
-        # self.Q = tf.matmul(self.input_s, self.W)
-        self.b1 = tf.Variable(tf.zeros([1, 10]) + 1e-4)
-        self.out_1 = tf.nn.relu(tf.matmul(self.input_s, self.W1) + self.b1)
-
-        self.W2 = tf.Variable(tf.random_uniform(shape=[10, env.action_space.n], minval=-1e-4, maxval=1e-4))
-        self.b2 = tf.Variable(tf.zeros([1, env.action_space.n]) + 1e-4)
-        self.Q = tf.nn.relu(tf.matmul(self.out_1, self.W2) + self.b2)
-        # self.predict_action = tf.argmax(self.Q, 1)
-
-        self.Q_target = tf.placeholder(shape=[1, env.action_space.n], dtype=tf.float32)
-        self.loss = tf.reduce_sum(tf.square(self.Q_target - self.Q))
-        self.update = tf.train.GradientDescentOptimizer(1e-3).minimize(self.loss)
-        self.init = tf.global_variables_initializer()
-
+from model import CNN, Freezing_CNN, Simple_model
 class RL_QG_agent:
     def __init__(self):
         # Init memory
@@ -207,13 +11,16 @@ class RL_QG_agent:
         self.memory_cnt = 0
         self.memory = []
 
-        self.loading_model = True
-        #self.loading_model = False
+        #self.loading_model = True
+        self.loading_model = False
         self.model_type = 'simple_model'
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
 
-        self.play_game_times = 50000
+        self.test_freq = 10
+        self.test_game_cnt = 10
+
+        self.play_game_times = 10000
         self.eps = 0.5
         self.eps_min = 0.01
         self.eps_decay = 0.999
@@ -228,6 +35,7 @@ class RL_QG_agent:
         self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
         self.env = gym.make('Reversi8x8-v0')
 
+
         self.sess = tf.Session()
         self.init_model()
 
@@ -237,8 +45,8 @@ class RL_QG_agent:
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
             if not self.loading_model:
-                self.simple_train()
-                # self.train()
+                #self.simple_train()
+                self.train()
 
         elif self.model_type == 'simple_cnn':
             self.model = CNN(env = self.env)
@@ -387,67 +195,114 @@ class RL_QG_agent:
                 s = next_s
                 player ^= 1
                 step += 1
+            if i % self.test_freq == 0:
+                print("test ", i, " score: ", self.test(self.test_game_cnt))
         # save model
         saver = tf.train.Saver()
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
     def simple_train(self):
         print('Start simple training')
-        with tf.Session() as sess:
-            sess.run(self.model.init)
-            for i in range(self.play_game_times):
-                s = self.env.reset()
-                step = 0
-                player = 0
-                while True:
-                    step += 1
-                    # get Q
-                    Q = sess.run(self.model.Q,\
-                                    feed_dict={self.model.input_s: np.reshape(s, (1, self.model.input_length))})
+        self.sess.run(self.model.init)
+        for i in range(self.play_game_times):
+            s = self.env.reset()
+            step = 0
+            player = 0
+            while True:
+                step += 1
+                # get Q
+                Q = self.sess.run(self.model.Q,\
+                                feed_dict={self.model.input_s: self.flat(s)})
 
-                    enables = self.env.possible_actions
-                    # get next action
-                    if np.random.rand(1) < self.eps:
-                        a = np.random.choice(enables)
-                    else:
-                        Q_flatted = np.ravel(Q)
-                        a = enables[np.argmax(Q_flatted[enables])]
+                enables = self.env.possible_actions
+                # get next action
+                if np.random.rand(1) < self.eps:
+                    a = np.random.choice(enables)
+                else:
+                    Q_flatted = np.ravel(Q)
+                    a = enables[np.argmax(Q_flatted[enables])]
 
-                    next_s, r, done, _ = self.env.step((a, player))
+                next_s, r, done, _ = self.env.step((a, player))
 
-                    enables = self.env.possible_actions
-                    # get next_Q and find next_max_Q
-                    if done:
-                        max_next_Q = 0
-                    else:
-                        next_Q = sess.run(self.model.Q, \
-                                          feed_dict={self.model.input_s: np.reshape(next_s, (1, self.model.input_length))})
-                        next_Q_flatted = np.ravel(next_Q)
-                        max_next_Q = np.max(next_Q_flatted[enables])
+                enables = self.env.possible_actions
+                # get next_Q and find next_max_Q
+                if done:
+                    max_next_Q = 0
+                else:
+                    next_Q = self.sess.run(self.model.Q, \
+                                      feed_dict={self.model.input_s: self.flat(next_s)})
+                    next_Q_flatted = np.ravel(next_Q)
+                    max_next_Q = np.max(next_Q_flatted[enables])
 
-                    Q_target = Q
-                    if i == self.play_game_times - 1:
-                        print('Q', Q[0][a])
-                    Q_target[0][a] = r + self.gamma * max_next_Q
-                    if i == self.play_game_times - 1:
-                        print('tQ ', Q_target[0][a])
+                Q_target = Q
+                if i == self.play_game_times - 1:
+                    print('Q', Q[0][a])
+                Q_target[0][a] = r + self.gamma * max_next_Q
+                if i == self.play_game_times - 1:
+                    print('tQ ', Q_target[0][a])
 
-                    # update
-                    _ = sess.run(self.model.update, \
-                            feed_dict={self.model.Q_target: Q_target, self.model.input_s: np.reshape(s, (1, self.model.input_length))})
-                    s = next_s
+                # update
+                _ = self.sess.run(self.model.update, \
+                        feed_dict={self.model.Q_target: Q_target, self.model.input_s: self.flat(s)})
+                s = next_s
 
-                    # change player
-                    player ^= 1
-                    if done:
-                        print('game {} : {}'.format(i, step))
-                        if self.eps > self.eps_min:
-                            self.eps *= self.eps_decay
-                        break
+                # change player
+                player ^= 1
+                if done:
+                    print('game {} : {}'.format(i, step))
+                    if self.eps > self.eps_min:
+                        self.eps *= self.eps_decay
+                    break
+            if i % self.test_freq == 0:
+                print("test ", i, " score: ", self.test(self.test_game_cnt))
 
             # save model
-            saver = tf.train.Saver()
-            saver.save(sess, os.path.join(self.model_dir, 'parameter.ckpt'))
+            self.saver = tf.train.Saver()
+            self.save_model()
+
+    def test(self, play_game_times = 1000):
+        env = gym.make('Reversi8x8-v0')
+        env.reset()
+        win_cnt = 0
+        for i_episode in range(play_game_times):
+            observation = env.reset()
+            # observation  是 3 x 8 x 8 的 list,表示当前的棋局，具体定义在 reversi.py 中的 state
+            for t in range(100):
+                action = [1,2]
+                # action  包含 两个整型数字，action[0]表示下棋的位置，action[1] 表示下棋的颜色（黑棋0或者白棋1）
+                ################### 黑棋 ############################### 0表示黑棋
+                #  这部分 黑棋 是随机下棋
+                enables = env.possible_actions
+                if len(enables) == 0:
+                    action_ = env.board_size**2 + 1
+                else:
+                    action_ = random.choice(enables)
+                action[0] = action_
+                action[1] = 0   # 黑棋 为 0
+                observation, reward, done, info = env.step(action)
+                ################### 白棋 ############################### 1表示白棋
+                enables = env.possible_actions
+                # if nothing to do ,select pass
+                if len(enables) == 0:
+                    action_ = env.board_size ** 2 + 1 # pass
+                else:
+                    action_ = random.choice(enables)
+                    action_  = self.place(observation, enables,player = 1) # 调用自己训练的模型
+
+                action[0] = action_
+                action[1] = 1  # 白棋 为 1
+                observation, reward, done, info = env.step(action)
+
+                if done: # 游戏 结束
+                    black_score = len(np.where(env.state[0,:,:]==1)[0])
+                    if black_score >32:
+                        #print("黑棋赢了！")
+                        pass
+                    else:
+                        #print("白棋赢了！")
+                        win_cnt += 1
+                    break
+        return win_cnt
 
 if __name__ == '__main__':
     agent = RL_QG_agent()
