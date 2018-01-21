@@ -1,0 +1,11 @@
+ 	self.play_game_times = 1000
+        self.pre_train_step = 100
+        self.learn_freq = 3
+        self.update_model_freq = 5
+        self.batch_size = 32
+        self.learn_step = 0
+
+        self.eps = 0.5
+        self.eps_min = 0.01
+        self.eps_decay = 0.999
+        self.gamma = 0.99
