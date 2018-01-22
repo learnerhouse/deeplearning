@@ -17,10 +17,11 @@ class RL_QG_agent:
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
 
-        self.test_freq = 10
-        self.test_game_cnt = 10
+        self.test_freq = 1000
+        self.test_game_cnt = 1000
+        self.best_score = 0
 
-        self.play_game_times = 10000
+        self.play_game_times = 200000
         self.eps = 0.5
         self.eps_min = 0.01
         self.eps_decay = 0.999
@@ -45,8 +46,8 @@ class RL_QG_agent:
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
             if not self.loading_model:
-                #self.simple_train()
-                self.train()
+                self.simple_train()
+                #self.train()
 
         elif self.model_type == 'simple_cnn':
             self.model = CNN(env = self.env)
@@ -147,10 +148,6 @@ class RL_QG_agent:
             self.eps *= self.eps_decay
 
     def __del__(self):
-        '''
-        好像没有用啊
-        :return:
-        '''
         print('sess close')
         self.sess.close()
 
@@ -190,13 +187,23 @@ class RL_QG_agent:
                         self.learn()
 
                 if done:
-                    print('game {} : {}'.format(i, step_in_a_game))
+                    #print('game {} : {}'.format(i, step_in_a_game))
                     break
                 s = next_s
                 player ^= 1
                 step += 1
+
+            # do test every test_freq games
             if i % self.test_freq == 0:
-                print("test ", i, " score: ", self.test(self.test_game_cnt))
+                score = 0
+                for _ in range(3):
+                    score += self.test(self.test_game_cnt)
+                print("test ", i, " score: ", score / 3)
+                if score > self.best_score:
+                    self.best_score = score
+                    saver = tf.train.Saver()
+                    saver.save(self.sess, os.path.join(self.model_dir, 'best', 'parameter.ckpt'))
+
         # save model
         saver = tf.train.Saver()
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
@@ -249,16 +256,25 @@ class RL_QG_agent:
                 # change player
                 player ^= 1
                 if done:
-                    print('game {} : {}'.format(i, step))
+                    #print('game {} : {}'.format(i, step))
                     if self.eps > self.eps_min:
                         self.eps *= self.eps_decay
                     break
-            if i % self.test_freq == 0:
-                print("test ", i, " score: ", self.test(self.test_game_cnt))
 
-            # save model
-            self.saver = tf.train.Saver()
-            self.save_model()
+            # do test every test_freq games
+            if i % self.test_freq == 0:
+                score = 0
+                for _ in range(3):
+                    score += self.test(self.test_game_cnt)
+                print("test ", i, " score: ", score / 3)
+                if score > self.best_score:
+                    self.best_score = score
+                    saver = tf.train.Saver()
+                    saver.save(self.sess, os.path.join(self.model_dir, 'best', 'parameter.ckpt'))
+
+        # save model
+        saver = tf.train.Saver()
+        saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
     def test(self, play_game_times = 1000):
         env = gym.make('Reversi8x8-v0')
