@@ -3,6 +3,7 @@ import random
 import os
 import gym
 import numpy as np
+import time
 from model import CNN, Freezing_CNN, Simple_model
 class RL_QG_agent:
     def __init__(self):
@@ -20,7 +21,7 @@ class RL_QG_agent:
         self.test_freq = 10
         self.test_game_cnt = 10
 
-        self.play_game_times = 10000
+        self.play_game_times = 15000
         self.eps = 0.5
         self.eps_min = 0.01
         self.eps_decay = 0.999
@@ -32,7 +33,14 @@ class RL_QG_agent:
         self.batch_size = 32
         self.learn_step = 0
 
-        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
+        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Reversi_model_"
+                                      +time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+                                      + self.model_type + str(self.play_game_times)
+                                      )
+
+        # self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        #                                "Reversi_model_2018-01-22 02:39:07simple_model20000")
+
         self.env = gym.make('Reversi8x8-v0')
 
 
@@ -45,8 +53,8 @@ class RL_QG_agent:
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
             if not self.loading_model:
-                #self.simple_train()
-                self.train()
+                self.simple_train()
+                #self.train()
 
         elif self.model_type == 'simple_cnn':
             self.model = CNN(env = self.env)

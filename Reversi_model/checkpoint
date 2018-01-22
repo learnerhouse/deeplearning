@@ -1,2 +1,2 @@
-model_checkpoint_path: "F:\\class\\nndl\\final\\Reversi_model\\parameter.ckpt"
-all_model_checkpoint_paths: "F:\\class\\nndl\\final\\Reversi_model\\parameter.ckpt"
+model_checkpoint_path: "/Users/xiaoren/git/deeplearning/deeplearning/Reversi_model/parameter.ckpt"
+all_model_checkpoint_paths: "/Users/xiaoren/git/deeplearning/deeplearning/Reversi_model/parameter.ckpt"

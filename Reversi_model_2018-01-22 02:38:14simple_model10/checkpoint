@@ -1,0 +1,2 @@
+model_checkpoint_path: "/Users/xiaoren/git/deeplearning/deeplearning/Reversi_model_2018-01-22 02:38:14simple_model10/parameter.ckpt"
+all_model_checkpoint_paths: "/Users/xiaoren/git/deeplearning/deeplearning/Reversi_model_2018-01-22 02:38:14simple_model10/parameter.ckpt"
