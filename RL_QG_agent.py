@@ -3,7 +3,10 @@ import random
 import os
 import gym
 import numpy as np
+from gym.envs.reversi.reversi import ReversiEnv
+import copy
 from model import CNN, Freezing_CNN, Simple_model
+
 class RL_QG_agent:
     def __init__(self):
         # Init memory
@@ -103,7 +106,7 @@ class RL_QG_agent:
                 next_Q = self.sess.run(self.model.freezing_Q, \
                                        feed_dict={self.model.input_s: self.flat(next_s)})
                 next_Q_flatted = np.ravel(next_Q)
-                next_enables = self.env.get_possible_actions(next_s, 1 - player)
+                next_enables = ReversiEnv.get_possible_actions(next_s, 1 - player)
                 max_next_Q = np.max(next_Q_flatted[next_enables])
 
             if game_i == self.play_game_times - 1:
@@ -134,7 +137,7 @@ class RL_QG_agent:
                 next_Q = self.sess.run(self.model.Q, \
                                        feed_dict={self.model.input_s: self.flat(next_s)})
                 next_Q_flatted = np.ravel(next_Q)
-                next_enables = self.env.get_possible_actions(next_s, 1 - player)
+                next_enables = ReversiEnv.get_possible_actions(next_s, 1 - player)
                 max_next_Q = np.max(next_Q_flatted[next_enables])
 
             Q_target = Q
@@ -229,9 +232,24 @@ class RL_QG_agent:
                     Q_flatted = np.ravel(Q)
                     a = enables[np.argmax(Q_flatted[enables])]
 
-                next_s, r, done, _ = self.env.step((a, player))
+                _s, r, done, _ = self.env.step((a, player))
 
-                enables = self.env.possible_actions
+                copy_env = copy.deepcopy(self.env)
+                if not done:
+                    # the opponent move(not change env)
+                    opp_enables = ReversiEnv.get_possible_actions(_s, 1 - player)
+                    opp_a = self.place(_s, opp_enables, 1 - player)
+                    next_s, r, done, _ = self.env.step((opp_a, 1 - player))
+                    # copy_s = copy.copy(_s)
+                    # next_s = ReversiEnv.make_place(copy_s, opp_a, 1 - player)
+                    # r = ReversiEnv.game_finished(next_s)
+                    # done = r != 0
+
+                self.env = copy_env
+                if player == 1:
+                    r = -r
+
+                enables = ReversiEnv.get_possible_actions(next_s, player)
                 # get next_Q and find next_max_Q
                 if done:
                     max_next_Q = 0
@@ -251,18 +269,18 @@ class RL_QG_agent:
                 # update
                 _ = self.sess.run(self.model.update, \
                         feed_dict={self.model.Q_target: Q_target, self.model.input_s: self.flat(s)})
-                s = next_s
+                s = _s
 
                 # change player
                 player ^= 1
                 if done:
-                    #print('game {} : {}'.format(i, step))
+                    print('game {} : {}'.format(i, step))
                     if self.eps > self.eps_min:
                         self.eps *= self.eps_decay
                     break
 
             # do test every test_freq games
-            if i % self.test_freq == 0:
+            if i and i % self.test_freq == 0:
                 score = 0
                 for _ in range(3):
                     score += self.test(self.test_game_cnt)
