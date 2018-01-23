@@ -5,6 +5,7 @@ import gym
 import numpy as np
 from gym.envs.reversi.reversi import ReversiEnv
 import copy
+import time
 from model import CNN, Freezing_CNN, Simple_model
 
 class RL_QG_agent:
@@ -205,7 +206,11 @@ class RL_QG_agent:
                 if score > self.best_score:
                     self.best_score = score
                     saver = tf.train.Saver()
-                    saver.save(self.sess, os.path.join(self.model_dir, 'best', 'parameter.ckpt'))
+                    saver.save(self.sess, os.path.join(self.model_dir, 'best'
+                                                       +time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+                                                       +self.model_type + str(self.play_game_times)
+                                                       +self.best_score
+                                                       , 'parameter.ckpt'))
 
         # save model
         saver = tf.train.Saver()
@@ -288,7 +293,11 @@ class RL_QG_agent:
                 if score > self.best_score:
                     self.best_score = score
                     saver = tf.train.Saver()
-                    saver.save(self.sess, os.path.join(self.model_dir, 'best', 'parameter.ckpt'))
+                    saver.save(self.sess, os.path.join(self.model_dir, 'best'
+                                                       +time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+                                                       +self.model_type + str(self.play_game_times)
+                                                       +self.best_score
+                                                       , 'parameter.ckpt'))
 
         # save model
         saver = tf.train.Saver()
