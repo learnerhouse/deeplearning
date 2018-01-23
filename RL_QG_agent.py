@@ -6,6 +6,7 @@ import numpy as np
 from gym.envs.reversi.reversi import ReversiEnv
 import copy
 import time
+import os
 from model import CNN, Freezing_CNN, Simple_model
 
 class RL_QG_agent:
@@ -46,6 +47,11 @@ class RL_QG_agent:
 
     def init_model(self):
         print(self.model_type)
+
+        if os.path.exists(self.model_dir):
+            pass
+        else:
+            os.makedirs(self.model_dir)
 
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
