@@ -285,7 +285,7 @@ class RL_QG_agent:
                 # change player
                 player ^= 1
                 if done:
-                    print('game {} : {}'.format(i, step))
+                    #print('game {} : {}'.format(i, step))
                     if self.eps > self.eps_min:
                         self.eps *= self.eps_decay
                     break
@@ -294,16 +294,18 @@ class RL_QG_agent:
             if i and i % self.test_freq == 0:
                 score = 0
                 for _ in range(3):
-                    score += self.test(self.test_game_cnt)
+                    #score += self.test(self.test_game_cnt)
+                    score += self.test(self.play_game_times)
                 print("test ", i, " score: ", score / 3)
                 if score > self.best_score:
                     self.best_score = score
                     saver = tf.train.Saver()
-                    saver.save(self.sess, os.path.join(self.model_dir, 'best'
-                                                       +time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+                    best_dir = os.path.join(self.model_dir, 'best'
+                                                       +time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
                                                        +self.model_type + str(self.play_game_times)
-                                                       +self.best_score
-                                                       , 'parameter.ckpt'))
+                                                        +'_'+str(self.best_score))
+
+                    saver.save(self.sess, os.path.join(best_dir, 'parameter.ckpt'))
 
         # save model
         saver = tf.train.Saver()
@@ -344,10 +346,8 @@ class RL_QG_agent:
 
                 if done: # 游戏 结束
                     black_score = len(np.where(env.state[0,:,:]==1)[0])
-                    if black_score >32:
-                        #print("黑棋赢了！")
-                        pass
-                    else:
+                    white_score = len(np.where(env.state[1,:,:]==1)[0])
+                    if black_score < white_score:
                         #print("白棋赢了！")
                         win_cnt += 1
                     break
