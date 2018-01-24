@@ -17,8 +17,8 @@ class RL_QG_agent:
         self.memory_cnt = 0
         self.memory = []
 
-        #self.loading_model = True
-        self.loading_model = False
+        self.loading_model = True
+        #self.loading_model = False
         self.model_type = 'simple_model'
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
@@ -39,8 +39,8 @@ class RL_QG_agent:
         self.batch_size = 10
         self.learn_step = 0
 
-        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
-        #self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model", "best2018-01-24-11-27-45simple_model10000_755")
+        #self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
+        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model", "best2018-01-24-15-08-08simple_model10000_846")
 
         self.env = gym.make('Reversi8x8-v0')
 
@@ -59,14 +59,12 @@ class RL_QG_agent:
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
             if not self.loading_model:
-                #self.simple_train()
                 self.train()
 
         elif self.model_type == 'simple_cnn':
             self.model = CNN(env = self.env)
             if not self.loading_model:
-                self.simple_train()
-                # self.train()
+                self.train()
         else:
             self.model = Freezing_CNN(env = self.env)
             if not self.loading_model:
@@ -223,80 +221,6 @@ class RL_QG_agent:
         saver = tf.train.Saver()
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
-    def simple_train(self):
-        '''
-            self-play
-        '''
-        print('Start simple training')
-        self.sess.run(self.model.init)
-        for i in range(self.play_game_times):
-            s = self.env.reset()
-            step = 0
-            player = 0
-            while True:
-                step += 1
-                # get Q
-                Q = self.sess.run(self.model.Q,\
-                                feed_dict={self.model.input_s: self.flat(s)})
-
-                enables = self.env.possible_actions
-                # get next action
-                if np.random.rand(1) < self.eps:
-                    a = np.random.choice(enables)
-                else:
-                    Q_flatted = np.ravel(Q)
-                    a = enables[np.argmax(Q_flatted[enables])]
-
-                _s, r, done, _ = self.env.step((a, player))
-
-                copy_env = copy.deepcopy(self.env)
-                if not done:
-                    # the opponent move(not change env)
-                    opp_enables = ReversiEnv.get_possible_actions(_s, 1 - player)
-                    opp_a = self.place(_s, opp_enables, 1 - player)
-                    next_s, r, done, _ = self.env.step((opp_a, 1 - player))
-
-                self.env = copy_env
-                if player == 1:
-                    r = -r
-
-                enables = ReversiEnv.get_possible_actions(next_s, player)
-                # get next_Q and find next_max_Q
-                if done:
-                    max_next_Q = 0
-                else:
-                    next_Q = self.sess.run(self.model.Q, \
-                                      feed_dict={self.model.input_s: self.flat(next_s)})
-                    next_Q_flatted = np.ravel(next_Q)
-                    max_next_Q = np.max(next_Q_flatted[enables])
-
-                Q_target = Q
-                if i == self.play_game_times - 1:
-                    print('Q', Q[0][a])
-                Q_target[0][a] = r + self.gamma * max_next_Q
-                if i == self.play_game_times - 1:
-                    print('tQ ', Q_target[0][a])
-
-                # update
-                _ = self.sess.run(self.model.update, \
-                        feed_dict={self.model.Q_target: Q_target, self.model.input_s: self.flat(s)})
-                s = _s
-
-                # change player
-                player ^= 1
-                if done:
-                    #print('game {} : {}'.format(i, step))
-                    if self.eps > self.eps_min:
-                        self.eps *= self.eps_decay
-                    break
-
-            # do test every test_freq games
-            if i % self.test_freq == 0:
-                self.test(i)
-        # save model
-        saver = tf.train.Saver()
-        saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
-
     def test(self, test_i):
         print('=' * 40, 'start test', '='*40)
         score = 0
@@ -305,7 +229,7 @@ class RL_QG_agent:
             score += self.single_test(self.test_game_cnt)
         score = score // turns
         print("test ", test_i, " score: ", score)
-        with open("test_output", "w") as f:
+        with open("test_output", "a") as f:
             f.write('test' + str(test_i) + " score " + str(score) + '\n')
 
         if score > self.best_score:
