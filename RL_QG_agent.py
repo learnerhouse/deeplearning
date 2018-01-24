@@ -205,18 +205,7 @@ class RL_QG_agent:
 
             # do test every test_freq games
             if i % self.test_freq == 0:
-                score = 0
-                for _ in range(3):
-                    score += self.test(self.test_game_cnt)
-                print("test ", i, " score: ", score / 3)
-                if score > self.best_score:
-                    self.best_score = score
-                    saver = tf.train.Saver()
-                    saver.save(self.sess, os.path.join(self.model_dir, 'best'
-                                                       +time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
-                                                       +self.model_type + str(self.play_game_times)
-                                                       +self.best_score
-                                                       , 'parameter.ckpt'))
+                self.test(i)
 
         # save model
         saver = tf.train.Saver()
@@ -251,10 +240,6 @@ class RL_QG_agent:
                     opp_enables = ReversiEnv.get_possible_actions(_s, 1 - player)
                     opp_a = self.place(_s, opp_enables, 1 - player)
                     next_s, r, done, _ = self.env.step((opp_a, 1 - player))
-                    # copy_s = copy.copy(_s)
-                    # next_s = ReversiEnv.make_place(copy_s, opp_a, 1 - player)
-                    # r = ReversiEnv.game_finished(next_s)
-                    # done = r != 0
 
                 self.env = copy_env
                 if player == 1:
@@ -291,27 +276,30 @@ class RL_QG_agent:
                     break
 
             # do test every test_freq games
-            if i and i % self.test_freq == 0:
-                score = 0
-                for _ in range(3):
-                    #score += self.test(self.test_game_cnt)
-                    score += self.test(self.play_game_times)
-                print("test ", i, " score: ", score / 3)
-                if score > self.best_score:
-                    self.best_score = score
-                    saver = tf.train.Saver()
-                    best_dir = os.path.join(self.model_dir, 'best'
-                                                       +time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
-                                                       +self.model_type + str(self.play_game_times)
-                                                        +'_'+str(self.best_score))
-
-                    saver.save(self.sess, os.path.join(best_dir, 'parameter.ckpt'))
-
+            if i % self.test_freq == 0:
+                self.test(i)
         # save model
         saver = tf.train.Saver()
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
-    def test(self, play_game_times = 1000):
+    def test(self, test_i):
+        score = 0
+        turns = 3
+        for _ in range(turns):
+            score += self.single_test(self.test_game_cnt)
+        score = score // turns
+        print("test ", test_i, " score: ", score)
+        if score > self.best_score:
+            self.best_score = score
+            saver = tf.train.Saver()
+            best_dir = os.path.join(self.model_dir, 'best'
+                                    +time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
+                                    +self.model_type + str(self.play_game_times)
+                                    +'_'+str(self.best_score))
+
+            saver.save(self.sess, os.path.join(best_dir, 'parameter.ckpt'))
+
+    def single_test(self, play_game_times = 1000):
         env = gym.make('Reversi8x8-v0')
         env.reset()
         win_cnt = 0
