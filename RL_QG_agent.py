@@ -8,11 +8,12 @@ import copy
 import time
 import os
 from model import CNN, Freezing_CNN, Simple_model
+import alpha_beta as ab
 
 class RL_QG_agent:
     def __init__(self):
         # Init memory
-        self.memory_size = 1024
+        self.memory_size = 512
         self.memory_cnt = 0
         self.memory = []
 
@@ -22,23 +23,25 @@ class RL_QG_agent:
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
 
-        self.test_freq = 1000
+        self.test_freq = 400
         self.test_game_cnt = 1000
         self.best_score = 0
 
-        self.play_game_times = 200000
+        self.play_game_times = 10000
         self.eps = 0.5
         self.eps_min = 0.01
         self.eps_decay = 0.999
         self.gamma = 0.99
 
-        self.pre_train_step = 6000
+        self.pre_train_step = 200
         self.learn_freq = 3
         self.replace_model_freq = 5
-        self.batch_size = 32
+        self.batch_size = 10
         self.learn_step = 0
 
         self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
+        #self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model", "best2018-01-24-11-27-45simple_model10000_755")
+
         self.env = gym.make('Reversi8x8-v0')
 
 
@@ -56,8 +59,8 @@ class RL_QG_agent:
         if self.model_type == 'simple_model':
             self.model = Simple_model(env = self.env)
             if not self.loading_model:
-                self.simple_train()
-                #self.train()
+                #self.simple_train()
+                self.train()
 
         elif self.model_type == 'simple_cnn':
             self.model = CNN(env = self.env)
@@ -113,7 +116,7 @@ class RL_QG_agent:
                 next_Q = self.sess.run(self.model.freezing_Q, \
                                        feed_dict={self.model.input_s: self.flat(next_s)})
                 next_Q_flatted = np.ravel(next_Q)
-                next_enables = ReversiEnv.get_possible_actions(next_s, 1 - player)
+                next_enables = ReversiEnv.get_possible_actions(next_s, player)
                 max_next_Q = np.max(next_Q_flatted[next_enables])
 
             if game_i == self.play_game_times - 1:
@@ -144,7 +147,7 @@ class RL_QG_agent:
                 next_Q = self.sess.run(self.model.Q, \
                                        feed_dict={self.model.input_s: self.flat(next_s)})
                 next_Q_flatted = np.ravel(next_Q)
-                next_enables = ReversiEnv.get_possible_actions(next_s, 1 - player)
+                next_enables = ReversiEnv.get_possible_actions(next_s, player)
                 max_next_Q = np.max(next_Q_flatted[next_enables])
 
             Q_target = Q
@@ -171,7 +174,11 @@ class RL_QG_agent:
         return action
 
     def train(self, freezing = False):
-        print('Start training with memory')
+        '''
+        play with alpha Beta
+        agent_color: black
+        '''
+        print('Start training with memory against alpha_beta')
         self.sess.run(self.model.init)
         if freezing:
             # init latest_model
@@ -180,15 +187,22 @@ class RL_QG_agent:
         step = 0
         for i in range(self.play_game_times):
             s = self.env.reset()
-            player = 0
             step_in_a_game = 0
             while True:
                 step_in_a_game += 1
                 enables = self.env.possible_actions
                 a = self.choose_action(s, enables, step)
-                next_s, r, done, _ = self.env.step((a, player))
+                # agent(black)
+                next_s, r, done, _ = self.env.step((a, 0))
 
-                self.remember(s, a, r, next_s, done, player)
+                # let opponent move: alpha_beta(white)
+                if not done:
+                    enables = self.env.possible_actions
+                    opp_a = ab.place(next_s, enables, 1)
+                    next_s, r, done, _ = self.env.step((opp_a, 1))
+                step += 1
+
+                self.remember(s, a, r, next_s, done, 0)
 
                 if (step > self.pre_train_step) and (step % self.learn_freq == 0):
                     if freezing:
@@ -197,11 +211,9 @@ class RL_QG_agent:
                         self.learn()
 
                 if done:
-                    #print('game {} : {}'.format(i, step_in_a_game))
+                    print('game {} : {}'.format(i, step_in_a_game))
                     break
                 s = next_s
-                player ^= 1
-                step += 1
 
             # do test every test_freq games
             if i % self.test_freq == 0:
@@ -212,6 +224,9 @@ class RL_QG_agent:
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
     def simple_train(self):
+        '''
+            self-play
+        '''
         print('Start simple training')
         self.sess.run(self.model.init)
         for i in range(self.play_game_times):
@@ -283,12 +298,16 @@ class RL_QG_agent:
         saver.save(self.sess, os.path.join(self.model_dir, 'parameter.ckpt'))
 
     def test(self, test_i):
+        print('=' * 40, 'start test', '='*40)
         score = 0
         turns = 3
         for _ in range(turns):
             score += self.single_test(self.test_game_cnt)
         score = score // turns
         print("test ", test_i, " score: ", score)
+        with open("test_output", "w") as f:
+            f.write('test' + str(test_i) + " score " + str(score) + '\n')
+
         if score > self.best_score:
             self.best_score = score
             saver = tf.train.Saver()
@@ -315,7 +334,8 @@ class RL_QG_agent:
                 if len(enables) == 0:
                     action_ = env.board_size**2 + 1
                 else:
-                    action_ = random.choice(enables)
+                    #action_ = random.choice(enables)
+                    action_  = self.place(observation, enables,player = 0) # 调用自己训练的模型
                 action[0] = action_
                 action[1] = 0   # 黑棋 为 0
                 observation, reward, done, info = env.step(action)
@@ -326,7 +346,7 @@ class RL_QG_agent:
                     action_ = env.board_size ** 2 + 1 # pass
                 else:
                     action_ = random.choice(enables)
-                    action_  = self.place(observation, enables,player = 1) # 调用自己训练的模型
+                    #action_  = self.place(observation, enables,player = 1) # 调用自己训练的模型
 
                 action[0] = action_
                 action[1] = 1  # 白棋 为 1
@@ -335,7 +355,7 @@ class RL_QG_agent:
                 if done: # 游戏 结束
                     black_score = len(np.where(env.state[0,:,:]==1)[0])
                     white_score = len(np.where(env.state[1,:,:]==1)[0])
-                    if black_score < white_score:
+                    if black_score > white_score:
                         #print("白棋赢了！")
                         win_cnt += 1
                     break
