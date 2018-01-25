@@ -2,7 +2,7 @@ import gym
 import random
 import numpy as np
 
-from RL_QG_agent import RL_QG_agent
+from RL_QG_agent_xiao import RL_QG_agent
 
 env = gym.make('Reversi8x8-v0')
 env.reset()
@@ -50,12 +50,13 @@ for i_episode in range(max_epochs):
         if done: # 游戏 结束
             print("Episode finished after {} timesteps".format(t+1))
             print(observation)
+            white_score = len(np.where(env.state[1,:,:]==1)[0])
             black_score = len(np.where(env.state[0,:,:]==1)[0])
-            if black_score >32:
-                print("黑棋赢了！")
-            else:
+            if black_score <white_score:
                 print("白棋赢了！")
                 win_cnt += 1
+            else:
+                print("黑棋赢了！")
             print(black_score)
             break
 

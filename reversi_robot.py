@@ -52,10 +52,13 @@ class reversi_robot:
     def update_Q(self,winner,gamma):
         Q = self.sess.run(self.model.Q,\
                     feed_dict={self.model.input_s: self.flat(self.status[winner][0])})
-        if winner == 1:  # 白棋赢
-            r = 10
-        else:
-            r = -10
+        # if winner == 1:  # 白棋赢
+        #     r = 10
+        # else:
+        #     r = 10
+        loser = 1- winner
+        winner_r = 10
+        loser_p = -10
 
         for i in range(len(self.status[winner])):
             if i == len(self.status[winner])-1: break
@@ -65,9 +68,26 @@ class reversi_robot:
             max_next_Q = np.max(next_Q_flatted[self.enables[winner][i]])
             Q_target = Q
             a = self.get_next_action(self.enables[winner][i],Q)
-            Q_target[0][a] = r + gamma * max_next_Q
+            Q_target[0][a] = winner_r + gamma * max_next_Q
             _ = self.sess.run(self.model.update, \
                     feed_dict={self.model.Q_target: Q_target,
                           self.model.input_s: self.flat(self.status[winner][i+1])})
             Q = self.sess.run(self.model.Q,\
                     feed_dict={self.model.input_s: self.flat(self.status[winner][i+1])})
+
+        Q = self.sess.run(self.model.Q,\
+                    feed_dict={self.model.input_s: self.flat(self.status[loser][0])})
+        for i in range(len(self.status[loser])):
+            if i == len(self.status[loser])-1: break
+            next_Q = self.sess.run(self.model.Q, \
+                                      feed_dict={self.model.input_s: self.flat(self.status[loser][i+1])})
+            next_Q_flatted = np.ravel(next_Q)
+            max_next_Q = np.max(next_Q_flatted[self.enables[loser][i]])
+            Q_target = Q
+            a = self.get_next_action(self.enables[loser][i],Q)
+            Q_target[0][a] = loser_p + gamma * max_next_Q
+            _ = self.sess.run(self.model.update, \
+                    feed_dict={self.model.Q_target: Q_target,
+                          self.model.input_s: self.flat(self.status[loser][i+1])})
+            Q = self.sess.run(self.model.Q,\
+                    feed_dict={self.model.input_s: self.flat(self.status[loser][i+1])})
