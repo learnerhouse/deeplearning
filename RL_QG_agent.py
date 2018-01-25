@@ -23,7 +23,7 @@ class RL_QG_agent:
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
 
-        self.test_freq = 400
+        self.test_freq = 200
         self.test_game_cnt = 1000
         self.best_score = 0
 
@@ -40,11 +40,12 @@ class RL_QG_agent:
         self.learn_step = 0
 
         #self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
-        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model", "best2018-01-24-15-08-08simple_model10000_846")
+        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model", "best2018-01-24-15-23-19simple_model10000_865")
 
         self.env = gym.make('Reversi8x8-v0')
 
 
+        tf.reset_default_graph()
         self.sess = tf.Session()
         self.init_model()
 
@@ -184,6 +185,10 @@ class RL_QG_agent:
 
         step = 0
         for i in range(self.play_game_times):
+            # do test every test_freq games
+            if i % self.test_freq == 0:
+                self.test(i)
+
             s = self.env.reset()
             step_in_a_game = 0
             while True:
@@ -213,9 +218,6 @@ class RL_QG_agent:
                     break
                 s = next_s
 
-            # do test every test_freq games
-            if i % self.test_freq == 0:
-                self.test(i)
 
         # save model
         saver = tf.train.Saver()
@@ -229,7 +231,7 @@ class RL_QG_agent:
             score += self.single_test(self.test_game_cnt)
         score = score // turns
         print("test ", test_i, " score: ", score)
-        with open("test_output", "a") as f:
+        with open("test_output" + self.model_type + ".txt", "a") as f:
             f.write('test' + str(test_i) + " score " + str(score) + '\n')
 
         if score > self.best_score:
