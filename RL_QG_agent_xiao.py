@@ -15,8 +15,8 @@ class RL_QG_agent:
         self.memory_cnt = 0
         self.memory = []
 
-        #self.loading_model = True
-        self.loading_model = False
+        self.loading_model = True
+        #self.loading_model = False
         self.model_type = 'simple_model'
         #self.model_type = 'simple_cnn'
         #self.model_type = 'freezing_cnn'
@@ -37,7 +37,7 @@ class RL_QG_agent:
         self.batch_size = 32
         self.learn_step = 0
 
-        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model")
+        self.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reversi_model/best2018-01-24 20:06:21simple_model200000115")
         self.env = gym.make('Reversi8x8-v0')
 
 
@@ -250,6 +250,18 @@ class RL_QG_agent:
                     opp_enables = robot_player.get_possible_actions(_s,1-player)
                     opp_a = self.place(_s, opp_enables, 1 - player)
                     next_s, r, done, _ = robot_player.step(opp_a, 1 - player)
+                    if r == 1:
+                        robot_player.update_Q(0,self.gamma)
+                        print('black win game {} : {}'.format(i, step))
+                        if self.eps > self.eps_min:
+                            self.eps *= self.eps_decay
+                        break
+                    elif r == -1:
+                        robot_player.update_Q(1,self.gamma)
+                        print('whiter win game {} : {}'.format(i, step))
+                        if self.eps > self.eps_min:
+                            self.eps *= self.eps_decay
+                        break
                 else:
                     if r == 1:
                         robot_player.update_Q(0,self.gamma)
@@ -356,13 +368,10 @@ class RL_QG_agent:
 
                 if done: # 游戏 结束
                     black_score = len(np.where(env.state[0,:,:]==1)[0])
-                    if black_score >32:
-                        #print("黑棋赢了！")
-                        pass
-                    else:
+                    white_score = len(np.where(env.state[1,:,:]==1)[0])
+                    if black_score < white_score:
                         #print("白棋赢了！")
                         win_cnt += 1
-                        pass
                     break
         return win_cnt
 
